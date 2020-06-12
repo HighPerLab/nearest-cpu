@@ -1,9 +1,8 @@
 find_path(
     HWLOC_INCLUDE_DIR
     NAMES hwloc.h
-    PATHS "${XMRIG_DEPS}" ENV "XMRIG_DEPS"
+    PATHS ENV HWLOCROOT
     PATH_SUFFIXES "include"
-    NO_DEFAULT_PATH
 )
 
 find_path(HWLOC_INCLUDE_DIR NAMES hwloc.h)
@@ -11,9 +10,8 @@ find_path(HWLOC_INCLUDE_DIR NAMES hwloc.h)
 find_library(
     HWLOC_LIBRARY
     NAMES hwloc.a hwloc libhwloc
-    PATHS "${XMRIG_DEPS}" ENV "XMRIG_DEPS"
+    PATHS ENV HWLOCROOT
     PATH_SUFFIXES "lib"
-    NO_DEFAULT_PATH
 )
 
 find_library(HWLOC_LIBRARY NAMES hwloc.a hwloc libhwloc)
