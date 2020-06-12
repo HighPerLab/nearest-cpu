@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <hwloc.h>
 #include <hwloc/cudart.h>
@@ -43,7 +44,7 @@ printlog (const char * fmt, ...)
 }
 
 /**
- * snprintf equivalent function for printing HWLOC object information.
+ * @brief snprintf equivalent function for printing HWLOC object information.
  *
  * @param str An allocated string pointer
  * @param size Length of string, not include `\0`
@@ -99,22 +100,22 @@ hwloc_info_snprintf (char *str, size_t size, hwloc_topology_t topo,
  * @param cpuset HWLOC CPU object to search in
  * @returns A HWLOC cpuset representing a single real core
  */
-static hwloc_bitmap_t *
+static hwloc_bitmap_t
 get_core (hwloc_cpuset_t cpuset, hwloc_topology_t topology)
 {
-    hwloc_bitmap_t *res;
+    hwloc_bitmap_t res;
     hwloc_obj_t obj_core = NULL;
 
-    res = malloc (sizeof (hwloc_cpuset_t));
+    res = hwloc_bitmap_alloc ();
     // this will get the first core...
     obj_core = hwloc_get_next_obj_inside_cpuset_by_type (topology, cpuset,
                                                          HWLOC_OBJ_CORE, obj_core);
 
     if (obj_core) {
         // get a copy of its cpuset that we may modify
-        *res = hwloc_bitmap_dup (obj_core->cpuset);
+        res = hwloc_bitmap_dup (obj_core->cpuset);
         // get only one logical processor (in case the core is SMT/hyperthreaded)
-        hwloc_bitmap_singlify (*res);
+        hwloc_bitmap_singlify (res);
     } else {
         printlog ("Unable to find a core within the given HWLOC cpuset!");
         exit (1);
@@ -127,7 +128,7 @@ static void
 get_nearest_cpu (unsigned cuda_ordinal)
 {
     hwloc_bitmap_t tmp_hw_cpuset;
-    hwloc_bitmap_t *nearest_cpu_sets;
+    hwloc_bitmap_t nearest_cpu_sets;
     hwloc_topology_t tmp_topology;
     char buf[1028];
 
@@ -150,18 +151,37 @@ get_nearest_cpu (unsigned cuda_ordinal)
         // get nearest CPU core
         nearest_cpu_sets = get_core (tmp_hw_cpuset, tmp_topology);
 
-        hwloc_info_snprintf (buf, 1024, tmp_topology, tmp_hw_cpuset, *nearest_cpu_sets);
+        hwloc_info_snprintf (buf, sizeof (buf), tmp_topology, tmp_hw_cpuset, nearest_cpu_sets);
 
         printf ("%s\n", buf);
     } else {
         printlog ("Unable to find CPU/core nearest CUDA device %d!\n", cuda_ordinal);
         exit (1);
     }
+
+    hwloc_bitmap_free (tmp_hw_cpuset);
+    hwloc_bitmap_free (nearest_cpu_sets);
 }
 
-
-int main ()
+int main (int argc, char ** argv)
 {
-    get_nearest_cpu (0);
-    return 0;
+    int cuda_ordinal = 0;
+    int opt;
+
+    while ((opt = getopt(argc, argv, "h")) != -1) {
+        switch (opt) {
+        case 'h':
+        default:
+            fprintf(stderr, "Usage: %s [-h] [cuda device idx]\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (argc > 1) {
+        sscanf (argv[optind], "%d", &cuda_ordinal);
+    }
+
+    get_nearest_cpu (cuda_ordinal);
+
+    return EXIT_SUCCESS;
 }
